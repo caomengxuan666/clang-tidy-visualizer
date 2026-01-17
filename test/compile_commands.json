@@ -1,0 +1,8 @@
+[
+{
+  "directory": "D:/codespace/clang-tidy-visualizer/clang-tidy-visualizer/test/build",
+  "command": "C:\\PROGRA~1\\MICROS~3\\18\\COMMUN~1\\VC\\Tools\\MSVC\\1450~1.357\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MDd /Zi /Ob0 /Od /RTC1 -std:c++17 /FoCMakeFiles\\test.dir\\test.cpp.obj /FdCMakeFiles\\test.dir\\ /FS -c D:\\codespace\\clang-tidy-visualizer\\clang-tidy-visualizer\\test\\test.cpp",
+  "file": "D:/codespace/clang-tidy-visualizer/clang-tidy-visualizer/test/test.cpp",
+  "output": "D:/codespace/clang-tidy-visualizer/clang-tidy-visualizer/test/build/CMakeFiles/test.dir/test.cpp.obj"
+}
+]

@@ -1,0 +1,12 @@
+out
+dist
+node_modules
+.vscode-test/
+*.vsix
+build/
+cmake-build-*/
+*.map
+*.vsix
+dist/
+.vscode/
+.vscode-test/

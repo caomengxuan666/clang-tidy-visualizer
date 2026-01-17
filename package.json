@@ -1,0 +1,208 @@
+{
+  "name": "clang-tidy-visualizer",
+  "displayName": " Clang-Tidy Visualizer",
+  "description": "%extension.description%",
+  "version": "0.0.1",
+  "publisher": "caomengxuan666",
+  "author": "caomengxuan666",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/caomengxuan666/clang-tidy-visualizer.git"
+  },
+  "icon": "media/icons/icon_128x128.png",
+  "engines": {
+    "vscode": "^1.101.0"
+  },
+  "categories": [
+    "Visualization"
+  ],
+  "activationEvents": [
+    "onCommand:clangTidyVisualizer.run",
+    "onLanguage:cpp",
+    "onLanguage:c"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "clangTidyVisualizer.run",
+        "title": "%command.run%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "clangTidyVisualizer.showReport",
+        "title": "%command.showReport%",
+        "category": "%command.category%"
+      }
+    ],
+    "configuration": {
+      "title": "%config.title%",
+      "properties": {
+        "clangTidyVisualizer.clangTidyPath": {
+          "type": "string",
+          "default": "clang-tidy",
+          "description": "%config.clangTidyPath.description%"
+        },
+        "clangTidyVisualizer.logLevel": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warn",
+            "info",
+            "debug"
+          ],
+          "default": "info",
+          "description": "%config.logLevel.description%"
+        },
+        "clangTidyVisualizer.compileCommandsPath": {
+          "type": "string",
+          "default": "",
+          "description": "%config.compileCommandsPath.description%"
+        },
+        "clangTidyVisualizer.checks": {
+          "type": "string",
+          "default": "*",
+          "description": "%config.checks.description%"
+        },
+        "clangTidyVisualizer.headerFilter": {
+          "type": "string",
+          "default": "",
+          "description": "%config.headerFilter.description%"
+        },
+        "clangTidyVisualizer.fixOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.fixOnSave.description%"
+        },
+        "clangTidyVisualizer.parallelJobs": {
+          "type": [
+            "number",
+            "string"
+          ],
+          "default": "auto",
+          "description": "%config.parallelJobs.description%"
+        },
+        "clangTidyVisualizer.report.autoOpen": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.report.autoOpen.description%"
+        },
+        "clangTidyVisualizer.report.style": {
+          "type": "string",
+          "enum": [
+            "modern",
+            "dark",
+            "minimal"
+          ],
+          "default": "modern",
+          "description": "%config.report.style.description%"
+        },
+        "clangTidyVisualizer.report.includeCharts": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.report.includeCharts.description%"
+        },
+        "clangTidyVisualizer.report.outputDir": {
+          "type": "string",
+          "default": "${workspaceFolder}/.clang-tidy-reports",
+          "description": "%config.report.outputDir.description%"
+        },
+        "clangTidyVisualizer.ui.statusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.ui.statusBar.description%"
+        },
+        "clangTidyVisualizer.ui.inlineDecorations": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.ui.inlineDecorations.description%"
+        },
+        "clangTidyVisualizer.ui.problemsPanel": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.ui.problemsPanel.description%"
+        },
+        "clangTidyVisualizer.ignorePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "third_party",
+            "node_modules",
+            "build",
+            "out"
+          ],
+          "description": "%config.ignorePatterns.description%"
+        },
+        "clangTidyVisualizer.excludeDirectories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Directories to exclude from analysis"
+        },
+        "clangTidyVisualizer.language": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "en",
+            "zh-cn"
+          ],
+          "default": "auto",
+          "description": "Language for the extension interface and reports. 'auto' uses VS Code's display language."
+        },
+        "clangTidyVisualizer.extraArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Additional arguments to pass to clang-tidy"
+        },
+        "clangTidyVisualizer.timeout": {
+          "type": "number",
+          "default": 300000,
+          "description": "Timeout for clang-tidy execution in milliseconds"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "chokidar": "^3.5.3",
+    "font-awesome": "^4.7.0",
+    "fs-extra": "^10.1.0",
+    "glob": "^8.0.3",
+    "js-yaml": "^4.1.0",
+    "luxon": "^3.0.0",
+    "picomatch": "^2.3.1"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.101.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.39.2",
+    "mocha": "^11.7.5",
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.52.0",
+    "webpack": "^5.104.1",
+    "webpack-cli": "^6.0.1"
+  }
+}
