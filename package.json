@@ -2,7 +2,7 @@
   "name": "clang-tidy-visualizer",
   "displayName": " Clang-Tidy Visualizer",
   "description": "%extension.description%",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "caomengxuan666",
   "author": "caomengxuan666",
   "repository": {

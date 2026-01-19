@@ -2,6 +2,9 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
+import * as child_process from 'child_process';
+import { getWslDistroName } from '../../extension';
 import { ReportData, ReportOptions } from '../../types';
 import { HtmlReporter } from '../../core/reporter/HtmlReporter';
 import { logger } from '../../utils/logger';
@@ -14,6 +17,7 @@ export class ReportWebview {
 
   constructor(context: vscode.ExtensionContext) {
     this.context = context;
+    logger.info(`VS Code remote name: ${vscode.env.remoteName}`);
   }
 
   /**
@@ -21,14 +25,14 @@ export class ReportWebview {
    */
   async showReport(reportData: ReportData, options: ReportOptions = {}): Promise<void> {
     logger.info('Showing Clang-Tidy report in Webview');
-    
+
     // Detect VS Code theme and set report style
     if (!options.style) {
       const vscodeTheme = vscode.workspace.getConfiguration('workbench').get<string>('colorTheme', '');
       options.style = vscodeTheme.toLowerCase().includes('dark') ? 'dark' : 'modern';
       logger.info(`Detected VS Code theme: ${vscodeTheme}, setting report style to: ${options.style}`);
     }
-    
+
     // Create or show existing panel
     if (this.panel) {
       this.panel.reveal(vscode.ViewColumn.Beside);
@@ -45,13 +49,13 @@ export class ReportWebview {
           ]
         }
       );
-      
+
       // Handle panel disposal
       this.panel.onDidDispose(() => {
         this.panel = null;
         logger.info('Report Webview panel disposed');
       });
-      
+
       // Handle messages from Webview
       this.panel.webview.onDidReceiveMessage(
         (message) => this.handleMessage(message),
@@ -59,11 +63,11 @@ export class ReportWebview {
         this.context.subscriptions
       );
     }
-    
+
     // Store current report data for export functionality
     this.currentReportData = reportData;
     this.currentOptions = options;
-    
+
     // Generate HTML content
     const html = await this.getWebviewContent(reportData, options);
     this.panel.webview.html = html;
@@ -74,7 +78,8 @@ export class ReportWebview {
    */
   private async getWebviewContent(reportData: ReportData, options: ReportOptions): Promise<string> {
     try {
-      const reporter = new HtmlReporter();
+      // Pass WSL distro name to HtmlReporter so it can generate correct remote URIs
+      const reporter = new HtmlReporter(getWslDistroName());
       return await reporter.generateReport(reportData, options);
     } catch (error) {
       logger.error('Failed to generate Webview content', error as Error);
@@ -107,18 +112,88 @@ export class ReportWebview {
   }
 
   /**
+   * Convert WSL path to Windows path using wslpath command
+   */
+  private convertWslToWindowsPath(wslPath: string): string {
+    try {
+      // Use wslpath command (built-in WSL tool) for reliable path conversion
+      logger.debug(`Running wslpath command for path: ${wslPath}`);
+      // 转义路径中的引号，处理包含空格或引号的路径
+      const escapedPath = wslPath.replace(/"/g, '\\"');
+      const windowsPath = child_process.execSync(`wslpath -w "${escapedPath}"`, { encoding: 'utf8' }).trim();
+      logger.info(`Successfully converted WSL path to Windows path: ${wslPath} -> ${windowsPath}`);
+      return windowsPath;
+    } catch (error) {
+      logger.warn(`Failed to convert path using wslpath: ${error}`);
+      
+      // 兜底：用正确的发行版名称拼接，去掉空格确保格式正确
+      const distro = getWslDistroName().replace(/\s+/g, ''); // 去掉发行版名称中的空格
+      const normalizedPath = wslPath.replace(/\//g, '\\');
+      const fallbackPath = `\\wsl.localhost\\${distro}${normalizedPath}`;
+      logger.info(`使用兜底路径: ${wslPath} -> ${fallbackPath}`);
+      return fallbackPath;
+    }
+  }
+
+  /**
    * Open file in editor at specific line
    */
   private openFileInEditor(filePath: string, line: number): void {
-    logger.info(`Opening file in editor: ${filePath}:${line}`);
-    
-    const uri = vscode.Uri.file(filePath);
-    vscode.window.showTextDocument(uri).then(editor => {
-      // Navigate to specific line
-      const position = new vscode.Position(line - 1, 0);
-      editor.selection = new vscode.Selection(position, position);
-      editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
-    });
+    logger.info(`打开文件: ${filePath}:${line}`);
+
+    if (vscode.env.remoteName === 'wsl') {
+      // WSL 环境下，直接用远程 URI 打开（不需要转成 Windows 路径）
+      const remoteUri = vscode.Uri.parse(
+        `vscode://vscode-remote/wsl+${getWslDistroName()}/${filePath.replace(/\\/g, '/')}`
+      );
+      logger.info(`使用远程 URI: ${remoteUri.toString()}`);
+      
+      vscode.window.showTextDocument(remoteUri, {
+        selection: new vscode.Range(line - 1, 0, line - 1, 0)
+      }).then(undefined, (error: any) => {
+        logger.error(`打开失败: ${error}`);
+        vscode.window.showErrorMessage(`无法打开文件: ${filePath}\n错误: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    } else {
+      // 非 WSL 环境用原来的逻辑
+      let targetPath = filePath;
+      
+      // Convert WSL path to Windows path if needed
+      if (filePath.startsWith('/')) {
+        logger.info(`Converting path: ${filePath}`);
+        targetPath = this.convertWslToWindowsPath(filePath);
+      }
+      
+      const uri = vscode.Uri.file(targetPath);
+      const showResult = vscode.window.showTextDocument(uri);
+      
+      // Handle both PromiseLike and regular Promise
+      if (showResult && typeof showResult.then === 'function') {
+        showResult.then((editor: vscode.TextEditor) => {
+          // Navigate to specific line
+          const position = new vscode.Position(line - 1, 0);
+          editor.selection = new vscode.Selection(position, position);
+          editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
+        }).then(undefined, (error: any) => {
+          logger.error(`Failed to open file: ${error}`);
+          vscode.window.showErrorMessage(`Failed to open file: ${error instanceof Error ? error.message : String(error)}`);
+        });
+      } else {
+        try {
+          // If it's not a promise, try to use it directly
+          const editor = showResult as unknown as vscode.TextEditor;
+          if (editor) {
+            // Navigate to specific line
+            const position = new vscode.Position(line - 1, 0);
+            editor.selection = new vscode.Selection(position, position);
+            editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
+          }
+        } catch (error) {
+          logger.error(`Failed to open file: ${error}`);
+          vscode.window.showErrorMessage(`Failed to open file: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    }
   }
 
   /**
@@ -142,13 +217,13 @@ export class ReportWebview {
    */
   private async exportReport(format: string): Promise<void> {
     logger.info(`Exporting report in ${format} format`);
-    
+
     if (!this.currentReportData || !this.currentOptions) {
       logger.error('No report data available for export');
       vscode.window.showErrorMessage('No report data available for export');
       return;
     }
-    
+
     // Show save dialog
     const saveDialogOptions: vscode.SaveDialogOptions = {
       filters: {
@@ -158,13 +233,13 @@ export class ReportWebview {
       },
       defaultUri: vscode.Uri.file(path.join(vscode.workspace.rootPath || '', `clang-tidy-report.${format}`))
     };
-    
+
     const uri = await vscode.window.showSaveDialog(saveDialogOptions);
     if (!uri) {
       logger.info('Export canceled by user');
       return;
     }
-    
+
     try {
       if (format === 'html') {
         // Generate HTML report
@@ -176,7 +251,7 @@ export class ReportWebview {
         const jsonContent = JSON.stringify(this.currentReportData, null, 2);
         await fs.promises.writeFile(uri.fsPath, jsonContent, 'utf-8');
       }
-      
+
       logger.info(`Report exported successfully to ${uri.fsPath}`);
       vscode.window.showInformationMessage(`Report exported successfully to ${uri.fsPath}`);
     } catch (error) {

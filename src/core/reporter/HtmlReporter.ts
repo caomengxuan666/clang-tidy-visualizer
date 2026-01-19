@@ -7,9 +7,11 @@ import { i18n } from '../../utils/i18nService';
 // Handlebars-like template engine (simplified for this implementation)
 export class HtmlReporter {
   private chartGenerator: ChartGenerator;
+  private wslDistroName?: string;
 
-  constructor() {
+  constructor(wslDistroName?: string) {
     this.chartGenerator = new ChartGenerator();
+    this.wslDistroName = wslDistroName;
   }
 
   /**
@@ -119,11 +121,25 @@ export class HtmlReporter {
 
   /**
    * Generate VSCode link for file location
+   * Supports both local and WSL environments
    */
   private generateVscodeLink(filePath: string, line: number): string {
     // Convert path to VSCode URI format
     const normalizedPath = filePath.replace(/\\/g, '/');
-    return `vscode://file/${normalizedPath}:${line}`;
+    
+    // Check if we're in a WSL environment by looking for Linux-style paths
+    // Linux paths start with /, Windows paths start with drive letter like C:/
+    if (normalizedPath.startsWith('/') && this.wslDistroName) {
+      // This is likely a WSL path and we know the distro name
+      return `vscode://vscode-remote/wsl+${this.wslDistroName}/${normalizedPath}:${line}`;
+    } else if (normalizedPath.startsWith('/')) {
+      // This is likely a WSL path but we don't know the distro name
+      // Generate a link that VS Code can still handle
+      return `vscode://file/${normalizedPath}:${line}`;
+    } else {
+      // This is likely a Windows path, generate local URI
+      return `vscode://file/${normalizedPath}:${line}`;
+    }
   }
 
 
@@ -1291,6 +1307,15 @@ export class HtmlReporter {
       }
       
       statusElement.innerHTML = visibleWarnings + ' issues in ' + visibleFiles + ' files shown';
+    }
+    
+    // Send message to VS Code extension
+    function sendMessage(command, data) {
+      const vscode = acquireVsCodeApi();
+      vscode.postMessage({
+        command: command,
+        ...data
+      });
     }
   </script>
 </body>
